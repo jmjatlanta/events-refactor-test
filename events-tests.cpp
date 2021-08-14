@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
-#include <cstdlib> 
+#include <cstdlib>
 #include <sstream>
 
 #include <list>
@@ -26,8 +26,8 @@ int32_t KOMODO_LASTMINED,prevKOMODO_LASTMINED; /* komodo_globals.h */
 
 bool IS_KOMODO_NOTARY = false;
 
-union _bits256 { uint8_t bytes[32]; uint16_t ushorts[16]; uint32_t uints[8]; uint64_t ulongs[4]; uint64_t txid; 
-std::string ToString() 
+union _bits256 { uint8_t bytes[32]; uint16_t ushorts[16]; uint32_t uints[8]; uint64_t ulongs[4]; uint64_t txid;
+std::string ToString()
 {
     std::string res = "";
     for (int i=0; i<32; i++)
@@ -60,6 +60,7 @@ static const CAmount CENT = 1000000;
 
 namespace events_old {
 
+    int32_t rewind_count = 0;
     pthread_mutex_t komodo_mutex,staked_mutex;
 
     /*
@@ -98,7 +99,7 @@ namespace events_old {
         int32_t SAVEDHEIGHT,CURRENT_HEIGHT,NOTARIZED_HEIGHT,MoMdepth;
         uint32_t SAVEDTIMESTAMP;
         uint64_t deposited,issued,withdrawn,approved,redeemed,shorted;
-        struct notarized_checkpoint *NPOINTS; 
+        struct notarized_checkpoint *NPOINTS;
         int32_t NUM_NPOINTS,last_NPOINTSi;
         struct komodo_event **Komodo_events; int32_t Komodo_numevents;
         uint32_t RTbufs[64][3]; uint64_t RTmask;
@@ -107,7 +108,7 @@ namespace events_old {
     struct komodo_event *komodo_eventadd(struct komodo_state *sp,int32_t height,char *symbol,uint8_t type,uint8_t *data,uint16_t datalen)
     {
         struct komodo_event *ep=0; uint16_t len = (uint16_t)(sizeof(*ep) + datalen);
-        
+
         if ( sp != 0 /*&& ASSETCHAINS_SYMBOL[0] != 0*/ ) // DISABLED for debug purposes (!)
         {
             portable_mutex_lock(&komodo_mutex);
@@ -120,12 +121,12 @@ namespace events_old {
                 memcpy(ep->space,data,datalen);
             sp->Komodo_events = (struct komodo_event **)realloc(sp->Komodo_events,(1 + sp->Komodo_numevents) * sizeof(*sp->Komodo_events));
             sp->Komodo_events[sp->Komodo_numevents++] = ep;
-            
-            static int32_t komodo_eventadd_call_count;
+
+            // static int32_t komodo_eventadd_call_count;
             // std::cerr << __func__ << " " << ++komodo_eventadd_call_count << " " << sp->Komodo_numevents << std::endl;
-            if (++komodo_eventadd_call_count == 4635) {
-                std::cerr << "after exit from this func, komodo_event_rewind will called and sp->Komodo_numevents will be decreased " << std::endl;
-            }
+            // if (++komodo_eventadd_call_count == 4635) {
+            //     std::cerr << "after exit from this func, komodo_event_rewind will called and sp->Komodo_numevents will be decreased " << std::endl;
+            // }
 
             portable_mutex_unlock(&komodo_mutex);
         }
@@ -178,7 +179,7 @@ namespace events_old {
             if ( counter++ < 100 )
                 printf("[%s] error validating notarization ht.%d notarized_height.%d, if on a pruned %s node this can be ignored\n",ASSETCHAINS_SYMBOL,height,notarizedheight,dest);
         }
-        else 
+        else
         */
         if ( strcmp(symbol,coin) == 0 )
         {
@@ -241,6 +242,7 @@ namespace events_old {
                 KOMODO_LASTMINED = prevKOMODO_LASTMINED;
                 prevKOMODO_LASTMINED = 0;
             }
+            rewind_count++;
             while ( sp->Komodo_events != 0 && sp->Komodo_numevents > 0 )
             {
                 if ( (ep= sp->Komodo_events[sp->Komodo_numevents-1]) != 0 )
@@ -317,13 +319,13 @@ namespace events_old {
     }
 
     /**
-     * @brief 
-     * 
-     * @param sp 
-     * @param fp 
-     * @param symbol 
-     * @param dest 
-     * @return int32_t 
+     * @brief
+     *
+     * @param sp
+     * @param fp
+     * @param symbol
+     * @param dest
+     * @return int32_t
      */
     int32_t komodo_parsestatefile(struct komodo_state *sp,FILE *fp,char *symbol,char *dest)
     {
@@ -512,9 +514,9 @@ namespace komodo {
         event_notarized(FILE* fp, int32_t ht, bool includeMoM = false);
         uint256 blockhash;
         uint256 desttxid;
-        uint256 MoM; 
+        uint256 MoM;
         int32_t notarizedheight;
-        int32_t MoMdepth; 
+        int32_t MoMdepth;
         char dest[16];
     };
 
@@ -527,7 +529,7 @@ namespace komodo {
         {
             memset(pubkeys, 0, 64 * 33);
         }
-        event_pubkeys(int32_t ht) : event(EVENT_PUBKEYS, ht), num(0) 
+        event_pubkeys(int32_t ht) : event(EVENT_PUBKEYS, ht), num(0)
         {
             memset(pubkeys, 0, 64 * 33);
         }
@@ -539,14 +541,14 @@ namespace komodo {
          */
         event_pubkeys(uint8_t* data, long &pos, long data_len, int32_t height);
         event_pubkeys(FILE* fp, int32_t height);
-        uint8_t num = 0; 
-        uint8_t pubkeys[64][33]; 
+        uint8_t num = 0;
+        uint8_t pubkeys[64][33];
     };
 
     // (???)
     struct event_u : public event
     {
-        event_u() : event(EVENT_U, 0) 
+        event_u() : event(EVENT_U, 0)
         {
             memset(mask, 0, 8);
             memset(hash, 0, 32);
@@ -574,9 +576,9 @@ namespace komodo {
         uint32_t timestamp = 0;
     };
 
-    struct event_opreturn : public event 
-    { 
-        event_opreturn() : event(EVENT_OPRETURN, 0) 
+    struct event_opreturn : public event
+    {
+        event_opreturn() : event(EVENT_OPRETURN, 0)
         {
             txid.SetNull();
         }
@@ -586,15 +588,15 @@ namespace komodo {
         }
         event_opreturn(uint8_t *data, long &pos, long data_len, int32_t height);
         event_opreturn(FILE* fp, int32_t height);
-        uint256 txid; 
+        uint256 txid;
         uint16_t vout = 0;
-        uint64_t value = 0; 
+        uint64_t value = 0;
         std::vector<uint8_t> opret;
     };
 
     struct event_pricefeed : public event
     {
-        event_pricefeed() : event(EVENT_PRICEFEED, 0), num(0) 
+        event_pricefeed() : event(EVENT_PRICEFEED, 0), num(0)
         {
             memset(prices, 0, 35);
         }
@@ -603,9 +605,9 @@ namespace komodo {
             memset(prices, 0, 35);
         }
         event_pricefeed(uint8_t *data, long &pos, long data_len, int32_t height);
-        event_pricefeed(FILE* fp, int32_t height); 
-        uint8_t num = 0; 
-        uint32_t prices[35]; 
+        event_pricefeed(FILE* fp, int32_t height);
+        uint8_t num = 0;
+        uint32_t prices[35];
     };
 
     /* komodo_structs.cpp */
@@ -625,7 +627,7 @@ namespace komodo {
             throw parse_error("Illegal number of keys: " + std::to_string(num));
     }
 
-    event_notarized::event_notarized(uint8_t *data, long &pos, long data_len, int32_t height, bool includeMoM) 
+    event_notarized::event_notarized(uint8_t *data, long &pos, long data_len, int32_t height, bool includeMoM)
         : event(EVENT_NOTARIZED, height), MoMdepth(0)
     {
         MoM.SetNull();
@@ -639,7 +641,7 @@ namespace komodo {
         }
     }
 
-    event_notarized::event_notarized(FILE* fp, int32_t height, bool includeMoM) 
+    event_notarized::event_notarized(FILE* fp, int32_t height, bool includeMoM)
             : event(EVENT_NOTARIZED, height), MoMdepth(0)
     {
         MoM.SetNull();
@@ -730,7 +732,7 @@ namespace komodo {
     event_pricefeed::event_pricefeed(uint8_t *data, long &pos, long data_len, int32_t height) : event(EVENT_PRICEFEED, height)
     {
         mem_read(this->num, data, pos, data_len);
-        // we're only interested if there are 35 prices. 
+        // we're only interested if there are 35 prices.
         // If there is any other amount, advance the pointer, but don't save it
         if (this->num == 35)
             mem_nread(this->prices, this->num, data, pos, data_len);
@@ -744,12 +746,13 @@ namespace komodo {
         if ( num * sizeof(uint32_t) <= sizeof(prices) && fread(prices,sizeof(uint32_t),num,fp) != num )
             throw parse_error("Unable to parse price feed");
     }
-  
+
 
 } // namespace komodo
 
 namespace events_new {
 
+int32_t rewind_count = 0;
 std::mutex komodo_mutex; /* komodo_globals.h */
 
 struct notarized_checkpoint /* komodo_structs.h */
@@ -835,7 +838,7 @@ struct notarized_checkpoint /* komodo_structs.h */
     {
         char *coin = (ASSETCHAINS_SYMBOL[0] == 0) ? (char *)"KMD" : ASSETCHAINS_SYMBOL;
         /*
-        if ( IS_KOMODO_NOTARY 
+        if ( IS_KOMODO_NOTARY
                 && komodo_verifynotarization(symbol,ntz->dest,height,ntz->notarizedheight,ntz->blockhash, ntz->desttxid) < 0 )
         {
             static uint32_t counter;
@@ -843,7 +846,7 @@ struct notarized_checkpoint /* komodo_structs.h */
                 printf("[%s] error validating notarization ht.%d notarized_height.%d, if on a pruned %s node this can be ignored\n",
                         ASSETCHAINS_SYMBOL,height,ntz->notarizedheight, ntz->dest);
         }
-        else 
+        else
         */
         if ( strcmp(symbol,coin) == 0 )
         {
@@ -873,10 +876,10 @@ struct notarized_checkpoint /* komodo_structs.h */
     {
         switch ( ep->type )
         {
-            case KOMODO_EVENT_RATIFY: 
-                printf("rewind of ratify, needs to be coded.%d\n",ep->height); 
+            case KOMODO_EVENT_RATIFY:
+                printf("rewind of ratify, needs to be coded.%d\n",ep->height);
                 break;
-            case KOMODO_EVENT_NOTARIZED: 
+            case KOMODO_EVENT_NOTARIZED:
                 break;
             case KOMODO_EVENT_KMDHEIGHT:
                 if ( ep->height <= sp->SAVEDHEIGHT )
@@ -902,6 +905,7 @@ struct notarized_checkpoint /* komodo_structs.h */
                 KOMODO_LASTMINED = prevKOMODO_LASTMINED;
                 prevKOMODO_LASTMINED = 0;
             }
+            rewind_count++;
             while ( sp->Komodo_events != 0 && sp->Komodo_numevents > 0 )
             {
                 if ( (ep= sp->Komodo_events[sp->Komodo_numevents-1]) != nullptr )
@@ -969,7 +973,7 @@ struct notarized_checkpoint /* komodo_structs.h */
                 bool matched = false;
                 if ( ASSETCHAINS_SYMBOL[0] == 0 && strcmp(symbol,"KMD") == 0 )
                     matched = true;
-                else 
+                else
                     matched = (strcmp(symbol,ASSETCHAINS_SYMBOL) == 0);
 
                 int32_t ht;
@@ -1028,7 +1032,7 @@ struct notarized_checkpoint /* komodo_structs.h */
 
 int main() {
 
-    std::cout << "--- Komodo Events Tests ---" << std::endl;
+    std::cout << "--- Komodo Events :: Simple Tests (q) Decker ---" << std::endl;
     // events_old::f();
     // uint256 a;
     // for (int i = 0; i<32; i++) a.bytes[i] = 0; a.uints[0] = 0xdeadc0de;
@@ -1038,7 +1042,7 @@ int main() {
     // komodo_passport_iteration -> komodo_parsestatefile
 
     FILE *fp; uint8_t *filedata; long fpos,datalen,lastfpos;
-    
+
     struct events_old::komodo_state KOMODO_STATE_OLD;
     memset(&KOMODO_STATE_OLD, 0, sizeof(KOMODO_STATE_OLD));
     struct events_old::komodo_state *sp_old = &KOMODO_STATE_OLD;
@@ -1065,8 +1069,10 @@ int main() {
 
         std::cerr << std::endl;
         std::cerr << "read_count = " << read_count << std::endl;
+        std::cerr << "rewind_count = " << events_old::rewind_count << std::endl;
         std::cerr << "sp->NUM_NPOINTS = " << sp_old->NUM_NPOINTS << std::endl;
         std::cerr << "sp->Komodo_numevents = " << sp_old->Komodo_numevents << std::endl;
+
 
         for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
             struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
@@ -1082,13 +1088,12 @@ int main() {
         {
             read_count++;
         }
-        
+
         std::cerr << "read_count = " << read_count << std::endl;
+        std::cerr << "rewind_count = " << events_new::rewind_count << std::endl;
         std::cerr << "sp->NUM_NPOINTS = " << sp_new->NUM_NPOINTS << std::endl;
         std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
         std::cerr << "sp->events.size() = " << sp_new->events.size() << std::endl;
-
-
 
         fclose(fp);
     }
