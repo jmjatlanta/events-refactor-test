@@ -21,6 +21,8 @@
 #define portable_mutex_unlock pthread_mutex_unlock
 #define KOMODO_ASSETCHAIN_MAXLEN 65 /* util.h, bitcoind.cpp, komodo_defs.h, komodo_globals.h, komodo_structs.h */
 char ASSETCHAINS_SYMBOL[] = {0};
+// char ASSETCHAINS_SYMBOL[] = {'M','C','L', 0};
+
 int32_t KOMODO_EXTERNAL_NOTARIES = 0; /* komodo_globals.h */
 int32_t KOMODO_LASTMINED,prevKOMODO_LASTMINED; /* komodo_globals.h */
 
@@ -1085,6 +1087,8 @@ int main() {
 
         const char *symbol = "KMD";
         const char *dest = "LTC";
+        // const char *symbol = "MCL";
+        // const char *dest = "KMD";
 
         // old events processing
         int32_t read_count = 0;
@@ -1101,11 +1105,11 @@ int main() {
         std::cerr << "sp->Komodo_numevents = " << sp_old->Komodo_numevents << std::endl;
 
 
-        for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
+        /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
             struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
             if (!(p_event->type == KOMODO_EVENT_KMDHEIGHT || p_event->type == KOMODO_EVENT_NOTARIZED))
                 std::cerr << i << ". " << p_event->type << std::endl;
-        }
+        } */
 
         std::cerr << std::endl;
         // new events processing
