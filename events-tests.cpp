@@ -1128,6 +1128,15 @@ int main() {
             "EVENT_REWIND"
     };
 
+    assert(sp_old->Komodo_numevents == sp_new->events.size());
+
+    size_t i = 0;
+    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
+        struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+        assert(p_event->height == ptr->height);
+        i++;
+    }
+
     // for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
     //         struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
     //         std::cerr << i << ". " << p_event->type << " " << p_event->height << std::endl;
