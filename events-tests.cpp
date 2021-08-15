@@ -34,6 +34,13 @@ std::string ToString()
         res = res + strprintf("%02x", bytes[i]);
     return res;
 }
+std::string ToStringRev()
+{
+    std::string res = "";
+    for (int i=0; i<32; i++)
+        res = strprintf("%02x", bytes[i]) + res;
+    return res;
+}
 void SetNull() {
     for (int i=0; i<32; i++) bytes[i] = 0;
 }
@@ -1137,17 +1144,33 @@ int main() {
         i++;
     }
 
-    // for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
-    //         struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
-    //         std::cerr << i << ". " << p_event->type << " " << p_event->height << std::endl;
-    // }
+    /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
+            struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+            std::cerr << i << ". " << p_event->type << " " << p_event->height << std::endl;
+    }
 
-    // size_t i = 0;
-    // for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
-    //     std::cerr << i++ << ". " << komodo_event_type_names[ptr->type] << " " << ptr->height << std::endl;
-    // }
+    size_t i = 0;
+    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
+        std::cerr << i++ << ". " << komodo_event_type_names[ptr->type] << " " << ptr->height << std::endl;
+    } */
 
-    // TODO: compare sp_old & sp_new fields (!)
+    std::cerr << sp_old->NOTARIZED_HASH.ToStringRev() << " - " << sp_new->NOTARIZED_HASH.ToStringRev() << std::endl;
+    assert(sp_old->NOTARIZED_HASH.ToStringRev() == sp_new->NOTARIZED_HASH.ToStringRev());
+    std::cerr << sp_old->NOTARIZED_DESTTXID.ToStringRev() << " - " << sp_new->NOTARIZED_DESTTXID.ToStringRev() << std::endl;
+    assert(sp_old->NOTARIZED_DESTTXID.ToStringRev() == sp_new->NOTARIZED_DESTTXID.ToStringRev());
+    std::cerr << sp_old->MoM.ToStringRev() << " - " << sp_new->MoM.ToStringRev() << std::endl;
+    assert(sp_old->MoM.ToStringRev() == sp_new->MoM.ToStringRev());
+    std::cerr << sp_old->SAVEDHEIGHT << " - " << sp_new->SAVEDHEIGHT << std::endl;
+    assert(sp_old->SAVEDHEIGHT == sp_new->SAVEDHEIGHT);
+    std::cerr << sp_old->CURRENT_HEIGHT << " - " << sp_new->CURRENT_HEIGHT << std::endl;
+    assert(sp_old->CURRENT_HEIGHT == sp_new->CURRENT_HEIGHT);
+    std::cerr << sp_old->NOTARIZED_HEIGHT << " - " << sp_new->NOTARIZED_HEIGHT << std::endl;
+    assert(sp_old->NOTARIZED_HEIGHT == sp_new->NOTARIZED_HEIGHT);
+    std::cerr << sp_old->SAVEDTIMESTAMP << " - " << sp_new->SAVEDTIMESTAMP << std::endl;
+    assert(sp_old->SAVEDTIMESTAMP == sp_new->SAVEDTIMESTAMP);
+    std::cerr << sp_old->NUM_NPOINTS << " - " << sp_new->NUM_NPOINTS << std::endl;
+    assert(sp_old->NUM_NPOINTS == sp_new->NUM_NPOINTS);
+    // TODO: compare NPOINTS (!)
 
     return 0;
 }
