@@ -1147,5 +1147,7 @@ int main() {
     //     std::cerr << i++ << ". " << komodo_event_type_names[ptr->type] << " " << ptr->height << std::endl;
     // }
 
+    // TODO: compare sp_old & sp_new fields (!)
+
     return 0;
 }
