@@ -798,7 +798,6 @@ struct notarized_checkpoint /* komodo_structs.h */
         uint32_t SAVEDTIMESTAMP;
         uint64_t deposited,issued,withdrawn,approved,redeemed,shorted;
         struct notarized_checkpoint *NPOINTS; int32_t NUM_NPOINTS,last_NPOINTS;
-        struct komodo_event **Komodo_events; int32_t Komodo_numevents;
         std::list<std::shared_ptr<komodo::event>> events;
         uint32_t RTbufs[64][3]; uint64_t RTmask;
         bool add_event(const std::string& symbol, const uint32_t height, std::shared_ptr<komodo::event> in);
@@ -1115,7 +1114,7 @@ int main() {
         std::cerr << "read_count = " << read_count << std::endl;
         std::cerr << "rewind_count = " << events_new::rewind_count << std::endl;
         std::cerr << "sp->NUM_NPOINTS = " << sp_new->NUM_NPOINTS << std::endl;
-        std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
+        // std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
         std::cerr << "sp->events.size() = " << sp_new->events.size() << std::endl;
 
         fclose(fp);
