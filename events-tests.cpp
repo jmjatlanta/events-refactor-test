@@ -21,6 +21,8 @@
 #define portable_mutex_unlock pthread_mutex_unlock
 #define KOMODO_ASSETCHAIN_MAXLEN 65 /* util.h, bitcoind.cpp, komodo_defs.h, komodo_globals.h, komodo_structs.h */
 char ASSETCHAINS_SYMBOL[] = {0};
+// char ASSETCHAINS_SYMBOL[] = {'M','C','L', 0};
+
 int32_t KOMODO_EXTERNAL_NOTARIES = 0; /* komodo_globals.h */
 int32_t KOMODO_LASTMINED,prevKOMODO_LASTMINED; /* komodo_globals.h */
 
@@ -32,6 +34,13 @@ std::string ToString()
     std::string res = "";
     for (int i=0; i<32; i++)
         res = res + strprintf("%02x", bytes[i]);
+    return res;
+}
+std::string ToStringRev()
+{
+    std::string res = "";
+    for (int i=0; i<32; i++)
+        res = strprintf("%02x", bytes[i]) + res;
     return res;
 }
 void SetNull() {
@@ -259,6 +268,9 @@ namespace events_old {
     /* komodo_events.h */
     void komodo_eventadd_kmdheight(struct komodo_state *sp,char *symbol,int32_t height,int32_t kmdheight,uint32_t timestamp)
     {
+        // static int32_t komodo_eventadd_kmdheight_call_count;
+        // std::cerr << __func__ << " [" << sp->Komodo_numevents << "] " << ++komodo_eventadd_kmdheight_call_count << " " << height << " " << kmdheight << " " << timestamp << std::endl;
+
         uint32_t buf[2];
         if ( kmdheight > 0 )
         {
@@ -338,6 +350,9 @@ namespace events_old {
             else matched = (strcmp(symbol,ASSETCHAINS_SYMBOL) == 0);
             if ( fread(&ht,1,sizeof(ht),fp) != sizeof(ht) )
                 errs++;
+            // if (ht == 2441413) {
+            //          std::cerr << "[new] Here we should break ... " << std::endl;
+            // }
             if ( 0 && ASSETCHAINS_SYMBOL[0] != 0 && func != 'T' )
                 printf("[%s] matched.%d fpos.%ld func.(%d %c) ht.%d\n",ASSETCHAINS_SYMBOL,matched,ftell(fp),func,func,ht);
             if ( func == 'P' )
@@ -783,7 +798,6 @@ struct notarized_checkpoint /* komodo_structs.h */
         uint32_t SAVEDTIMESTAMP;
         uint64_t deposited,issued,withdrawn,approved,redeemed,shorted;
         struct notarized_checkpoint *NPOINTS; int32_t NUM_NPOINTS,last_NPOINTS;
-        struct komodo_event **Komodo_events; int32_t Komodo_numevents;
         std::list<std::shared_ptr<komodo::event>> events;
         uint32_t RTbufs[64][3]; uint64_t RTmask;
         bool add_event(const std::string& symbol, const uint32_t height, std::shared_ptr<komodo::event> in);
@@ -872,25 +886,24 @@ struct notarized_checkpoint /* komodo_structs.h */
         }
     }
 
-    void komodo_event_undo(struct komodo_state *sp,struct komodo_event *ep)
+    void komodo_event_undo(komodo_state *sp, std::shared_ptr<komodo::event> ev)
     {
-        switch ( ep->type )
+        switch ( ev->type )
         {
             case KOMODO_EVENT_RATIFY:
-                printf("rewind of ratify, needs to be coded.%d\n",ep->height);
+                printf("rewind of ratify, needs to be coded.%d\n",ev->height);
                 break;
             case KOMODO_EVENT_NOTARIZED:
                 break;
             case KOMODO_EVENT_KMDHEIGHT:
-                if ( ep->height <= sp->SAVEDHEIGHT )
-                    sp->SAVEDHEIGHT = ep->height;
+                if ( ev->height <= sp->SAVEDHEIGHT )
+                    sp->SAVEDHEIGHT = ev->height;
                 break;
             case KOMODO_EVENT_PRICEFEED:
                 // backtrack prices;
-                break;
             case KOMODO_EVENT_OPRETURN:
-                // backtrack opreturns
-                break;
+                    // backtrack opreturns
+                    break;
         }
     }
 
@@ -906,15 +919,14 @@ struct notarized_checkpoint /* komodo_structs.h */
                 prevKOMODO_LASTMINED = 0;
             }
             rewind_count++;
-            while ( sp->Komodo_events != 0 && sp->Komodo_numevents > 0 )
+
+        while ( sp->events.size() > 0)
             {
-                if ( (ep= sp->Komodo_events[sp->Komodo_numevents-1]) != nullptr )
-                {
-                    if ( ep->height < height )
-                        break;
-                    komodo_event_undo(sp,ep);
-                    sp->Komodo_numevents--;
-                }
+                auto ev = sp->events.back(); // read last (!) element sp->Komodo_events[sp->Komodo_numevents-1]
+                if (ev-> height < height)
+                    break;
+                komodo_event_undo(sp, ev);
+                sp->events.pop_back();
             }
         }
     }
@@ -927,7 +939,7 @@ struct notarized_checkpoint /* komodo_structs.h */
 
     void komodo_eventadd_opreturn( komodo_state *sp, char *symbol, int32_t height, std::shared_ptr<komodo::event_opreturn> opret)
     {
-        if ( sp != nullptr )
+        if ( sp != nullptr && ASSETCHAINS_SYMBOL[0] != 0)
         {
             sp->add_event(symbol, height, opret);
             komodo_opreturn(height, opret->value, opret->opret.data(), opret->opret.size(), opret->txid, opret->vout, symbol);
@@ -947,6 +959,9 @@ struct notarized_checkpoint /* komodo_structs.h */
     {
         if (sp != nullptr)
         {
+            // static int32_t komodo_eventadd_kmdheight_call_count;
+            // std::cerr << __func__ << " [" << sp->events.size() <<"] " << ++komodo_eventadd_kmdheight_call_count << " " << height << " " << kmdht->kheight << " " << kmdht->timestamp << std::endl;
+
             if ( kmdht->kheight > 0 ) // height is advancing
             {
 
@@ -979,6 +994,11 @@ struct notarized_checkpoint /* komodo_structs.h */
                 int32_t ht;
                 if ( fread(&ht,1,sizeof(ht),fp) != sizeof(ht) )
                     throw komodo::parse_error("Unable to read height from file");
+
+                // if (ht == 2441413) {
+                //     std::cerr << "[new] Here we should break ... " << std::endl;
+                // }
+
                 if ( func == 'P' )
                 {
                     std::shared_ptr<komodo::event_pubkeys> pk = std::make_shared<komodo::event_pubkeys>(fp, ht);
@@ -1058,6 +1078,8 @@ int main() {
 
         const char *symbol = "KMD";
         const char *dest = "LTC";
+        // const char *symbol = "MCL";
+        // const char *dest = "KMD";
 
         // old events processing
         int32_t read_count = 0;
@@ -1074,11 +1096,11 @@ int main() {
         std::cerr << "sp->Komodo_numevents = " << sp_old->Komodo_numevents << std::endl;
 
 
-        for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
+        /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
             struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
             if (!(p_event->type == KOMODO_EVENT_KMDHEIGHT || p_event->type == KOMODO_EVENT_NOTARIZED))
                 std::cerr << i << ". " << p_event->type << std::endl;
-        }
+        } */
 
         std::cerr << std::endl;
         // new events processing
@@ -1092,11 +1114,58 @@ int main() {
         std::cerr << "read_count = " << read_count << std::endl;
         std::cerr << "rewind_count = " << events_new::rewind_count << std::endl;
         std::cerr << "sp->NUM_NPOINTS = " << sp_new->NUM_NPOINTS << std::endl;
-        std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
+        // std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
         std::cerr << "sp->events.size() = " << sp_new->events.size() << std::endl;
 
         fclose(fp);
     }
+
+    const char* komodo_event_type_names[] = {
+            "EVENT_PUBKEYS",
+            "N", // "EVENT_NOTARIZED",
+            "EVENT_U",
+            "K", // "EVENT_KMDHEIGHT",
+            "EVENT_OPRETURN",
+            "EVENT_PRICEFEED",
+            "EVENT_REWIND"
+    };
+
+    assert(sp_old->Komodo_numevents == sp_new->events.size());
+
+    size_t i = 0;
+    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
+        struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+        assert(p_event->height == ptr->height);
+        i++;
+    }
+
+    /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
+            struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+            std::cerr << i << ". " << p_event->type << " " << p_event->height << std::endl;
+    }
+
+    size_t i = 0;
+    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
+        std::cerr << i++ << ". " << komodo_event_type_names[ptr->type] << " " << ptr->height << std::endl;
+    } */
+
+    std::cerr << sp_old->NOTARIZED_HASH.ToStringRev() << " - " << sp_new->NOTARIZED_HASH.ToStringRev() << std::endl;
+    assert(sp_old->NOTARIZED_HASH.ToStringRev() == sp_new->NOTARIZED_HASH.ToStringRev());
+    std::cerr << sp_old->NOTARIZED_DESTTXID.ToStringRev() << " - " << sp_new->NOTARIZED_DESTTXID.ToStringRev() << std::endl;
+    assert(sp_old->NOTARIZED_DESTTXID.ToStringRev() == sp_new->NOTARIZED_DESTTXID.ToStringRev());
+    std::cerr << sp_old->MoM.ToStringRev() << " - " << sp_new->MoM.ToStringRev() << std::endl;
+    assert(sp_old->MoM.ToStringRev() == sp_new->MoM.ToStringRev());
+    std::cerr << sp_old->SAVEDHEIGHT << " - " << sp_new->SAVEDHEIGHT << std::endl;
+    assert(sp_old->SAVEDHEIGHT == sp_new->SAVEDHEIGHT);
+    std::cerr << sp_old->CURRENT_HEIGHT << " - " << sp_new->CURRENT_HEIGHT << std::endl;
+    assert(sp_old->CURRENT_HEIGHT == sp_new->CURRENT_HEIGHT);
+    std::cerr << sp_old->NOTARIZED_HEIGHT << " - " << sp_new->NOTARIZED_HEIGHT << std::endl;
+    assert(sp_old->NOTARIZED_HEIGHT == sp_new->NOTARIZED_HEIGHT);
+    std::cerr << sp_old->SAVEDTIMESTAMP << " - " << sp_new->SAVEDTIMESTAMP << std::endl;
+    assert(sp_old->SAVEDTIMESTAMP == sp_new->SAVEDTIMESTAMP);
+    std::cerr << sp_old->NUM_NPOINTS << " - " << sp_new->NUM_NPOINTS << std::endl;
+    assert(sp_old->NUM_NPOINTS == sp_new->NUM_NPOINTS);
+    // TODO: compare NPOINTS (!)
 
     return 0;
 }
