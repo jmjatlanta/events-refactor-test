@@ -735,13 +735,20 @@ namespace komodo {
             throw parse_error("Unable to parse vout of opreturn record");
         if ( fread(&value,1,sizeof(value),fp) != sizeof(value) )
             throw parse_error("Unable to parse value of opreturn record");
+
+/*         uint16_t oplen;
+        if ( fread(&oplen,1,sizeof(oplen),fp) != sizeof(oplen) )
+            throw parse_error("Unable to parse length of opreturn record");
+        this->opret.resize(oplen);
+        if ( fread(&this->opret[0], sizeof this->opret[0], this->opret.size(), fp) != oplen )
+            throw parse_error("Unable to parse binary data of opreturn");
+ */
         uint16_t oplen;
         if ( fread(&oplen,1,sizeof(oplen),fp) != sizeof(oplen) )
             throw parse_error("Unable to parse length of opreturn record");
-        std::unique_ptr<uint8_t> b(new uint8_t[oplen]);
-        if ( fread(b.get(), 1, oplen, fp) != oplen)
+        this->opret.resize(oplen);
+        if ( fread(this->opret.data(), 1, oplen, fp) != oplen)
             throw parse_error("Unable to parse binary data of opreturn");
-        this->opret = std::vector<uint8_t>( b.get(), b.get() + oplen);
     }
 
     event_pricefeed::event_pricefeed(uint8_t *data, long &pos, long data_len, int32_t height) : event(EVENT_PRICEFEED, height)
@@ -1050,6 +1057,36 @@ struct notarized_checkpoint /* komodo_structs.h */
 
 }
 
+#define MAX_CURRENCIES 32
+char CURRENCIES[][8] = { "USD", "EUR", "JPY", "GBP", "AUD", "CAD", "CHF", "NZD", // major currencies
+     "CNY", "RUB", "MXN", "BRL", "INR", "HKD", "TRY", "ZAR", "PLN", "NOK", "SEK", "DKK", "CZK", "HUF", "ILS", "KRW", "MYR", "PHP", "RON", "SGD", "THB", "BGN", "IDR", "HRK",
+     "KMD" };
+
+struct events_new::komodo_state KOMODO_STATES[34];
+
+int32_t komodo_baseid(char *origbase)
+{
+    int32_t i; char base[64];
+    for (i=0; origbase[i]!=0&&i<sizeof(base); i++)
+        base[i] = toupper((int32_t)(origbase[i] & 0xff));
+    base[i] = 0;
+    for (i=0; i<=MAX_CURRENCIES; i++)
+        if ( strcmp(CURRENCIES[i],base) == 0 )
+            return(i);
+    //printf("illegal base.(%s) %s\n",origbase,base);
+    return(-1);
+}
+
+struct events_new::komodo_state *komodo_stateptrget(char *base)
+{
+    int32_t baseid;
+    if ( base == 0 || base[0] == 0 || strcmp(base,(char *)"KMD") == 0 )
+        return(&KOMODO_STATES[33]);
+    else if ( (baseid= komodo_baseid(base)) >= 0 )
+        return(&KOMODO_STATES[baseid+1]);
+    else return(&KOMODO_STATES[0]);
+}
+
 int main() {
 
     std::cout << "--- Komodo Events :: Simple Tests (q) Decker ---" << std::endl;
@@ -1166,6 +1203,12 @@ int main() {
     std::cerr << sp_old->NUM_NPOINTS << " - " << sp_new->NUM_NPOINTS << std::endl;
     assert(sp_old->NUM_NPOINTS == sp_new->NUM_NPOINTS);
     // TODO: compare NPOINTS (!)
+
+    std::cout << komodo_baseid("KMD") << std::endl;
+    std::cout << (komodo_stateptrget("KMD")-&KOMODO_STATES[0]) << std::endl;
+
+    std::cout << komodo_baseid("USD") << std::endl;
+    std::cout << (komodo_stateptrget("USD")-&KOMODO_STATES[0]) << std::endl;
 
     return 0;
 }
