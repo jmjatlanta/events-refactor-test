@@ -1172,6 +1172,8 @@ int main() {
     size_t i = 0;
     for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
         struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+        // ptr     - sp_new: komodo::event
+        // p_event - sp_old: komodo_event
         assert(p_event->height == ptr->height);
         i++;
     }
@@ -1202,7 +1204,31 @@ int main() {
     assert(sp_old->SAVEDTIMESTAMP == sp_new->SAVEDTIMESTAMP);
     std::cerr << sp_old->NUM_NPOINTS << " - " << sp_new->NUM_NPOINTS << std::endl;
     assert(sp_old->NUM_NPOINTS == sp_new->NUM_NPOINTS);
-    // TODO: compare NPOINTS (!)
+
+    // compare NPOINTS in old and new implementation
+    size_t NUM_NPOINTS = sp_old->NUM_NPOINTS;
+    for (size_t i=0; i < NUM_NPOINTS; i++) {
+        // std::cerr << sp_old->NPOINTS+i << " " << sp_new->NPOINTS+i << std::endl;
+        // sp_old->NPOINTS[i].
+        events_old::notarized_checkpoint old_checkpoint = sp_old->NPOINTS[i];
+        events_new::notarized_checkpoint new_checkpoint = sp_new->NPOINTS[i];
+
+        assert(old_checkpoint.kmdendi              == new_checkpoint.kmdendi           );
+        assert(old_checkpoint.kmdstarti            == new_checkpoint.kmdstarti         );
+        assert(memcmp(&old_checkpoint.MoM, &new_checkpoint.MoM, 32) == 0);
+        assert(old_checkpoint.MoMdepth             == new_checkpoint.MoMdepth          );
+        assert(memcmp(&old_checkpoint.MoMoM, &new_checkpoint.MoMoM, 32) ==0);
+        assert(old_checkpoint.MoMoMdepth           == new_checkpoint.MoMoMdepth        );
+        assert(old_checkpoint.MoMoMoffset          == new_checkpoint.MoMoMoffset       );
+        assert(old_checkpoint.nHeight              == new_checkpoint.nHeight           );
+        assert(memcmp(&old_checkpoint.notarized_desttxid, &new_checkpoint.notarized_desttxid, 32) == 0);
+        assert(memcmp(&old_checkpoint.notarized_hash, &new_checkpoint.notarized_hash, 32) == 0);
+        assert(old_checkpoint.notarized_height     == new_checkpoint.notarized_height  );
+    }
+
+
+    // TODO: check https://github.com/KomodoPlatform/komodo/pull/476/commits/de6166bddd3ab27e501b28dba5bbbe795c3251c7
+    // Refactor komodo_state.NPOINTS
 
     std::cout << komodo_baseid("KMD") << std::endl;
     std::cout << (komodo_stateptrget("KMD")-&KOMODO_STATES[0]) << std::endl;
