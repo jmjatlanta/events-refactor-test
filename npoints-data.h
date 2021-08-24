@@ -1,4 +1,4 @@
-const struct notarized_checkpoint notarized_checkpoints[] = 
+/*const*/ struct notarized_checkpoint notarized_checkpoints[] = 
 {
     {"0x0adeca68daf59c4ec40ae6902dd84980750bb09c8775e2aba5c9561b922013da", "0x23707ce8e84482501dae9d4a0f953bc64788e91adde6a56982d5a8c5169b4130", "0x0", "0x0", 2441332, 2441320, 0, 0, 0, 0, 0}, 
     {"0x0dc3348eda7e578b51b1dd333e98a95edad33f6bbdb7f2a81eeb0057571b3213", "0x966f0c03695fa198d8845053243bb63f7c8dc9a7643fd7b9f3186c9153ea2505", "0x0", "0x0", 2441342, 2441330, 0, 0, 0, 0, 0}, 
