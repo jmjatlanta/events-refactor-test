@@ -46,7 +46,16 @@ std::string ToStringRev()
 void SetNull() {
     for (int i=0; i<32; i++) bytes[i] = 0;
 }
+friend std::ostream& operator<<(std::ostream& out, const _bits256 &b);
 };
+
+std::ostream& operator<<(std::ostream& out, const _bits256 &b) {
+    std::string res = "";
+    for (int i=0; i<32; i++)
+        res = strprintf("%02x", b.bytes[i]) + res;
+    out << res;
+    return out;
+}
 
 typedef union _bits256 bits256;
 typedef union _bits256 uint256;
@@ -85,6 +94,20 @@ namespace events_old {
     {
         uint256 notarized_hash,notarized_desttxid,MoM,MoMoM;
         int32_t nHeight,notarized_height,MoMdepth,MoMoMdepth,MoMoMoffset,kmdstarti,kmdendi;
+        friend std::ostream& operator<<(std::ostream& out, const notarized_checkpoint &nc);
+    };
+
+    std::ostream& operator<<(std::ostream& out, const notarized_checkpoint &nc) {
+    out << "{"
+        << "\"0x" << nc.notarized_hash << "\"" << ", "
+        << "\"0x" << nc.notarized_desttxid << "\"" << ", "
+        << "\"0x" << nc.MoM << "\"" << ", "
+        << "\"0x" << nc.MoMoM << "\"" << ", "
+        << nc.nHeight << ", " << nc.notarized_height << ", " << nc.MoMdepth << ", "
+        << nc.MoMoMdepth << ", "
+        << nc.MoMoMoffset << ", " << nc.kmdstarti << ", " << nc.kmdendi
+        << "}";
+    return out;
     };
 
     struct komodo_event_notarized { uint256 blockhash,desttxid,MoM; int32_t notarizedheight,MoMdepth; char dest[16]; };
@@ -781,6 +804,21 @@ struct notarized_checkpoint /* komodo_structs.h */
     {
         uint256 notarized_hash,notarized_desttxid,MoM,MoMoM;
         int32_t nHeight,notarized_height,MoMdepth,MoMoMdepth,MoMoMoffset,kmdstarti,kmdendi;
+        friend std::ostream& operator<<(std::ostream& out, const notarized_checkpoint &nc);
+    };
+
+    std::ostream& operator<<(std::ostream& out, const notarized_checkpoint &nc)
+    {
+        out << "{"
+            << "\"0x" << nc.notarized_hash << "\"" << ", "
+            << "\"0x" << nc.notarized_desttxid << "\"" << ", "
+            << "\"0x" << nc.MoM << "\"" << ", "
+            << "\"0x" << nc.MoMoM << "\"" << ", "
+            << nc.nHeight << ", " << nc.notarized_height << ", " << nc.MoMdepth << ", "
+            << nc.MoMoMdepth << ", "
+            << nc.MoMoMoffset << ", " << nc.kmdstarti << ", " << nc.kmdendi
+            << "}";
+        return out;
     };
 
     struct komodo_event_notarized { uint256 blockhash,desttxid,MoM; int32_t notarizedheight,MoMdepth; char dest[16]; };
@@ -1224,6 +1262,8 @@ int main() {
         assert(memcmp(&old_checkpoint.notarized_desttxid, &new_checkpoint.notarized_desttxid, 32) == 0);
         assert(memcmp(&old_checkpoint.notarized_hash, &new_checkpoint.notarized_hash, 32) == 0);
         assert(old_checkpoint.notarized_height     == new_checkpoint.notarized_height  );
+
+        std::cout << new_checkpoint << ", " << std::endl;
     }
 
 
@@ -1235,6 +1275,21 @@ int main() {
 
     std::cout << komodo_baseid("USD") << std::endl;
     std::cout << (komodo_stateptrget("USD")-&KOMODO_STATES[0]) << std::endl;
+
+    std::cerr << "---" << std::endl;
+
+    // uint256 zero; zero.SetNull();
+
+    // // reference test
+    // std::vector<int32_t> v = {0,1,2,3,4};
+    // int32_t &ref_v = v[2];
+    // v.clear();
+    // v.push_back(5);
+    // v.back() = 7;
+    //     for (auto el : v) {
+    //     std::cerr << el << std::endl;
+    // }
+    // std::cerr << ref_v << std::endl; // undefined behavior?
 
     return 0;
 }
