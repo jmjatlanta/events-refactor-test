@@ -660,6 +660,7 @@ int main() {
     std::cout << " (" << old_space::sp->NUM_NPOINTS << ", " << new_space::sp->NumCheckpoints() << ")" << std::endl;
 
     int idx_old, idx_new;
+    // 2524171 - FAIL
     int32_t arr_heights[] = { 2524224, 2524223, 2524210, 2524209, 2524200, 2524190, 2524171, 2524170 };
     size_t max_arr_heights = sizeof(arr_heights)/sizeof(arr_heights[0]);
 
@@ -708,12 +709,19 @@ int main() {
     }
 
     /*
+        DONE:
+
         old_space::komodo_npptr_for_height - new_space::komodo_npptr
         old_space::komodo_notarizeddata    - new_space::komodo_notarizeddata
+
+        TODO:
+
+        - komodo_notarized_height
+
     */
 
-    // 2524223 - FAIL,
-    int32_t arr_nheights[] = { 2524224, 2524223, 2524210, 2524209, 2524200, 2524192, 2524190, 2524171, 2524170 };
+    // 2524223, 2524192, 2441342 - FAIL
+    int32_t arr_nheights[] = { 2524224, 2524223, 2524210, 2524209, 2524200, 2524192, 2524190, 2524171, 2524170, 2441342 };
     //
     size_t max_arr_nheights = sizeof(arr_nheights)/sizeof(arr_nheights[0]);
     int32_t old_ret_height, new_ret_height;
