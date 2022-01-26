@@ -28,24 +28,25 @@ int32_t KOMODO_LASTMINED,prevKOMODO_LASTMINED; /* komodo_globals.h */
 
 bool IS_KOMODO_NOTARY = false;
 
-union _bits256 { uint8_t bytes[32]; uint16_t ushorts[16]; uint32_t uints[8]; uint64_t ulongs[4]; uint64_t txid;
-std::string ToString()
-{
-    std::string res = "";
-    for (int i=0; i<32; i++)
-        res = res + strprintf("%02x", bytes[i]);
-    return res;
-}
-std::string ToStringRev()
-{
-    std::string res = "";
-    for (int i=0; i<32; i++)
-        res = strprintf("%02x", bytes[i]) + res;
-    return res;
-}
-void SetNull() {
-    for (int i=0; i<32; i++) bytes[i] = 0;
-}
+union _bits256 { 
+    uint8_t bytes[32]; uint16_t ushorts[16]; uint32_t uints[8]; uint64_t ulongs[4]; uint64_t txid;
+    std::string ToString()
+    {
+        std::string res = "";
+        for (int i=0; i<32; i++)
+            res = res + strprintf("%02x", bytes[i]);
+        return res;
+    }
+    std::string ToStringRev()
+    {
+        std::string res = "";
+        for (int i=0; i<32; i++)
+            res = strprintf("%02x", bytes[i]) + res;
+        return res;
+    }
+    void SetNull() {
+        for (int i=0; i<32; i++) bytes[i] = 0;
+    }
 };
 
 typedef union _bits256 bits256;
@@ -793,6 +794,12 @@ struct notarized_checkpoint /* komodo_structs.h */
 
     struct komodo_state
     {
+        komodo_state()
+        {
+            NOTARIZED_HASH.SetNull();
+            NOTARIZED_DESTTXID.SetNull();
+            MoM.SetNull();
+        }
         uint256 NOTARIZED_HASH,NOTARIZED_DESTTXID,MoM;
         int32_t SAVEDHEIGHT,CURRENT_HEIGHT,NOTARIZED_HEIGHT,MoMdepth;
         uint32_t SAVEDTIMESTAMP;
@@ -1050,6 +1057,111 @@ struct notarized_checkpoint /* komodo_structs.h */
 
 }
 
+bool equal(const uint256& lhs, const uint256& rhs)
+{
+    for(int i = 0; i < 32; ++i)
+        if (lhs.bytes[i] != rhs.bytes[i])
+            return false;
+    if (lhs.txid != rhs.txid)
+        return false;
+    return true;
+}
+
+char type_convert(komodo::komodo_event_type in)
+{
+    switch(in)
+    {
+        case (komodo::komodo_event_type::EVENT_KMDHEIGHT):
+            return KOMODO_EVENT_KMDHEIGHT;
+        case (komodo::komodo_event_type::EVENT_NOTARIZED):
+            return KOMODO_EVENT_NOTARIZED;
+        case (komodo::komodo_event_type::EVENT_OPRETURN):
+            return KOMODO_EVENT_OPRETURN;
+        case (komodo::komodo_event_type::EVENT_PRICEFEED):
+            return KOMODO_EVENT_PRICEFEED;
+        case (komodo::komodo_event_type::EVENT_PUBKEYS):
+            return KOMODO_EVENT_RATIFY;
+        case (komodo::komodo_event_type::EVENT_REWIND):
+            return KOMODO_EVENT_REWIND;
+        case (komodo::komodo_event_type::EVENT_U):
+            return 'U';
+        default:
+            return 0;
+    }
+}
+
+bool compare_objects(const events_old::komodo_state &state_old, const events_new::komodo_state& state_new, 
+        size_t recordNo)
+{
+    if (state_old.approved != state_new.approved)
+        return false;
+    if (state_old.CURRENT_HEIGHT != state_new.CURRENT_HEIGHT)
+        return false;
+    if (state_old.deposited != state_new.deposited)
+        return false;
+    if (state_old.issued != state_new.issued)
+        return false;
+    if (state_old.Komodo_numevents != state_new.events.size())
+        return false;
+    else
+    {
+        size_t i = 0;
+        for (const std::shared_ptr<komodo::event>& ptr : state_new.events) {
+            events_old::komodo_event *p_event = state_old.Komodo_events[i];
+            if (p_event->height != ptr->height)
+                return false;
+            if (p_event->type != type_convert(ptr->type))
+                return false;
+            // TODO: Check the details of each event type
+            i++;
+        }
+    }
+    if (state_old.last_NPOINTSi != state_new.last_NPOINTS)
+        return false;
+    else
+    {
+        // NPOINTS are equal, now compare them
+        for(size_t i = 0; i < state_new.last_NPOINTS; ++i)
+        {
+            events_new::notarized_checkpoint new_cp = state_new.NPOINTS[i];
+            events_old::notarized_checkpoint old_cp = state_old.NPOINTS[i];
+            if (old_cp.kmdendi != new_cp.kmdendi)
+                return false;
+            if (old_cp.kmdstarti != new_cp.kmdstarti)
+                return false;
+            if ( !equal(old_cp.MoM, new_cp.MoM) )
+                return false;
+            if ( old_cp.MoMdepth != new_cp.MoMdepth)
+                return false;
+            if ( !equal(old_cp.MoMoM, new_cp.MoMoM) )
+                return false;
+            if ( old_cp.MoMoMdepth != new_cp.MoMoMdepth)
+                return false;
+            if ( old_cp.MoMoMoffset != new_cp.MoMoMoffset)
+                return false;
+            if ( old_cp.nHeight != new_cp.nHeight)
+                return false;
+            if ( !equal(old_cp.notarized_desttxid, new_cp.notarized_desttxid) )
+                return false;
+            if ( !equal(old_cp.notarized_hash, new_cp.notarized_hash) )
+                return false;
+            if ( old_cp.notarized_height != new_cp.notarized_height )
+                return false;
+        }
+    }
+    if ( !equal(state_old.MoM, state_new.MoM) )
+        return false;
+    if (state_old.MoMdepth != state_new.MoMdepth)
+        return false;
+    if ( !equal(state_old.NOTARIZED_DESTTXID, state_new.NOTARIZED_DESTTXID) )
+        return false;
+    if ( !equal(state_old.NOTARIZED_HASH, state_new.NOTARIZED_HASH) )
+        return false;
+    if (state_old.NOTARIZED_HEIGHT != state_new.NOTARIZED_HEIGHT)
+        return false;
+    return true;
+}
+
 int main() {
 
     std::cout << "--- Komodo Events :: Simple Tests (q) Decker ---" << std::endl;
@@ -1061,61 +1173,76 @@ int main() {
     // komodo_faststateinit -> komodo_parsestatefiledata
     // komodo_passport_iteration -> komodo_parsestatefile
 
-    FILE *fp; uint8_t *filedata; long fpos,datalen,lastfpos;
+    FILE *fp; 
+    uint8_t *filedata; 
+    long fpos;
+    long datalen;
+    long lastfpos;
 
-    struct events_old::komodo_state KOMODO_STATE_OLD;
-    memset(&KOMODO_STATE_OLD, 0, sizeof(KOMODO_STATE_OLD));
-    struct events_old::komodo_state *sp_old = &KOMODO_STATE_OLD;
+    events_old::komodo_state state_old;
+    memset(&state_old, 0, sizeof(events_old::komodo_state));
 
-    struct events_new::komodo_state KOMODO_STATE_NEW;
-    // memset(&KOMODO_STATE_NEW, 0, sizeof(KOMODO_STATE_NEW)); // we can't do such thing here, bcz we will damage std::list
-    struct events_new::komodo_state *sp_new = &KOMODO_STATE_NEW;
+    events_new::komodo_state state_new;
 
     fp= fopen("komodostate","rb");
     if (fp) {
-        fseek(fp,0,SEEK_END);
-        fprintf(stderr,"%s: reading %ldKB\n","komodostate",ftell(fp)/1024);
 
         const char *symbol = "KMD";
         const char *dest = "LTC";
-        // const char *symbol = "MCL";
-        // const char *dest = "KMD";
 
-        // old events processing
+        size_t start_pos = ftell(fp);
+        fseek(fp,0,SEEK_END);
+        size_t end_pos = ftell(fp);
+        fprintf(stderr,"%s: reading %ldKB\n","komodostate",end_pos/1024);
+
         int32_t read_count = 0;
-        fseek(fp, 0, SEEK_SET);
-        while ( events_old::komodo_parsestatefile(sp_old,fp,(char *)symbol,(char *)dest) >= 0 )
+        while( start_pos != end_pos)
         {
-            read_count++;
+            fseek(fp, start_pos, SEEK_SET);
+            int32_t parse_ret = events_old::komodo_parsestatefile(&state_old,fp,(char *)symbol,(char *)dest);
+            if (parse_ret <= 0)
+            {
+                std::cout << "events_old::komodo_parsestatefile returned " << std::to_string(parse_ret) 
+                        << " at read_count " << std::to_string(read_count) << std::endl;
+            }
+            fseek(fp, start_pos, SEEK_SET);
+            parse_ret = events_new::komodo_parsestatefile(&state_new, fp, (char *)symbol, (char *)dest);
+            if (parse_ret <= 0)
+            {
+                std::cout << "events_new::komodo_parsestatefile returned " << std::to_string(parse_ret) 
+                        << " at read_count " << std::to_string(read_count) << std::endl;
+            }
+            // TODO: Compare the current state of the objects
+            bool comparison = compare_objects(state_old, state_new, read_count);
+            if (!comparison)
+            {
+                std::cerr << "Comparison failed at record " << std::to_string(read_count) << std::endl;
+            }
+            ++read_count;
+            start_pos = ftell(fp);
         }
 
         std::cerr << std::endl;
+        std::cerr << "Old code:\n";
         std::cerr << "read_count = " << read_count << std::endl;
         std::cerr << "rewind_count = " << events_old::rewind_count << std::endl;
-        std::cerr << "sp->NUM_NPOINTS = " << sp_old->NUM_NPOINTS << std::endl;
-        std::cerr << "sp->Komodo_numevents = " << sp_old->Komodo_numevents << std::endl;
+        std::cerr << "sp->NUM_NPOINTS = " << state_old.NUM_NPOINTS << std::endl;
+        std::cerr << "sp->Komodo_numevents = " << state_old.Komodo_numevents << std::endl;
 
 
-        /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
-            struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+        /* for (size_t i = 0; i < state_old.Komodo_numevents; i++) {
+            struct events_old::komodo_event *p_event = state_old.Komodo_events[i];
             if (!(p_event->type == KOMODO_EVENT_KMDHEIGHT || p_event->type == KOMODO_EVENT_NOTARIZED))
                 std::cerr << i << ". " << p_event->type << std::endl;
         } */
 
-        std::cerr << std::endl;
-        // new events processing
-        read_count = 0;
-        fseek(fp, 0, SEEK_SET);
-        while ( events_new::komodo_parsestatefile(sp_new,fp,(char *)symbol,(char *)dest) >= 0 )
-        {
-            read_count++;
-        }
 
+        std::cerr << "New code:\n";
         std::cerr << "read_count = " << read_count << std::endl;
         std::cerr << "rewind_count = " << events_new::rewind_count << std::endl;
-        std::cerr << "sp->NUM_NPOINTS = " << sp_new->NUM_NPOINTS << std::endl;
-        // std::cerr << "sp->Komodo_numevents = " << sp_new->Komodo_numevents << std::endl;
-        std::cerr << "sp->events.size() = " << sp_new->events.size() << std::endl;
+        std::cerr << "sp->NUM_NPOINTS = " << state_new.NUM_NPOINTS << std::endl;
+        // std::cerr << "sp->Komodo_numevents = " << state_new.Komodo_numevents << std::endl;
+        std::cerr << "sp->events.size() = " << state_new.events.size() << std::endl;
 
         fclose(fp);
     }
@@ -1130,41 +1257,41 @@ int main() {
             "EVENT_REWIND"
     };
 
-    assert(sp_old->Komodo_numevents == sp_new->events.size());
+    assert(state_old.Komodo_numevents == state_new.events.size());
 
     size_t i = 0;
-    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
-        struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+    for (const std::shared_ptr<komodo::event>& ptr : state_new.events) {
+        events_old::komodo_event *p_event = state_old.Komodo_events[i];
         assert(p_event->height == ptr->height);
         i++;
     }
 
-    /* for (size_t i = 0; i < sp_old->Komodo_numevents; i++) {
-            struct events_old::komodo_event *p_event = sp_old->Komodo_events[i];
+    /* for (size_t i = 0; i < state_old.Komodo_numevents; i++) {
+            struct events_old::komodo_event *p_event = state_old.Komodo_events[i];
             std::cerr << i << ". " << p_event->type << " " << p_event->height << std::endl;
     }
 
     size_t i = 0;
-    for (const std::shared_ptr<komodo::event>& ptr : sp_new->events) {
+    for (const std::shared_ptr<komodo::event>& ptr : state_new.events) {
         std::cerr << i++ << ". " << komodo_event_type_names[ptr->type] << " " << ptr->height << std::endl;
     } */
 
-    std::cerr << sp_old->NOTARIZED_HASH.ToStringRev() << " - " << sp_new->NOTARIZED_HASH.ToStringRev() << std::endl;
-    assert(sp_old->NOTARIZED_HASH.ToStringRev() == sp_new->NOTARIZED_HASH.ToStringRev());
-    std::cerr << sp_old->NOTARIZED_DESTTXID.ToStringRev() << " - " << sp_new->NOTARIZED_DESTTXID.ToStringRev() << std::endl;
-    assert(sp_old->NOTARIZED_DESTTXID.ToStringRev() == sp_new->NOTARIZED_DESTTXID.ToStringRev());
-    std::cerr << sp_old->MoM.ToStringRev() << " - " << sp_new->MoM.ToStringRev() << std::endl;
-    assert(sp_old->MoM.ToStringRev() == sp_new->MoM.ToStringRev());
-    std::cerr << sp_old->SAVEDHEIGHT << " - " << sp_new->SAVEDHEIGHT << std::endl;
-    assert(sp_old->SAVEDHEIGHT == sp_new->SAVEDHEIGHT);
-    std::cerr << sp_old->CURRENT_HEIGHT << " - " << sp_new->CURRENT_HEIGHT << std::endl;
-    assert(sp_old->CURRENT_HEIGHT == sp_new->CURRENT_HEIGHT);
-    std::cerr << sp_old->NOTARIZED_HEIGHT << " - " << sp_new->NOTARIZED_HEIGHT << std::endl;
-    assert(sp_old->NOTARIZED_HEIGHT == sp_new->NOTARIZED_HEIGHT);
-    std::cerr << sp_old->SAVEDTIMESTAMP << " - " << sp_new->SAVEDTIMESTAMP << std::endl;
-    assert(sp_old->SAVEDTIMESTAMP == sp_new->SAVEDTIMESTAMP);
-    std::cerr << sp_old->NUM_NPOINTS << " - " << sp_new->NUM_NPOINTS << std::endl;
-    assert(sp_old->NUM_NPOINTS == sp_new->NUM_NPOINTS);
+    std::cerr << state_old.NOTARIZED_HASH.ToStringRev() << " - " << state_new.NOTARIZED_HASH.ToStringRev() << std::endl;
+    assert(state_old.NOTARIZED_HASH.ToStringRev() == state_new.NOTARIZED_HASH.ToStringRev());
+    std::cerr << state_old.NOTARIZED_DESTTXID.ToStringRev() << " - " << state_new.NOTARIZED_DESTTXID.ToStringRev() << std::endl;
+    assert(state_old.NOTARIZED_DESTTXID.ToStringRev() == state_new.NOTARIZED_DESTTXID.ToStringRev());
+    std::cerr << state_old.MoM.ToStringRev() << " - " << state_new.MoM.ToStringRev() << std::endl;
+    assert(state_old.MoM.ToStringRev() == state_new.MoM.ToStringRev());
+    std::cerr << state_old.SAVEDHEIGHT << " - " << state_new.SAVEDHEIGHT << std::endl;
+    assert(state_old.SAVEDHEIGHT == state_new.SAVEDHEIGHT);
+    std::cerr << state_old.CURRENT_HEIGHT << " - " << state_new.CURRENT_HEIGHT << std::endl;
+    assert(state_old.CURRENT_HEIGHT == state_new.CURRENT_HEIGHT);
+    std::cerr << state_old.NOTARIZED_HEIGHT << " - " << state_new.NOTARIZED_HEIGHT << std::endl;
+    assert(state_old.NOTARIZED_HEIGHT == state_new.NOTARIZED_HEIGHT);
+    std::cerr << state_old.SAVEDTIMESTAMP << " - " << state_new.SAVEDTIMESTAMP << std::endl;
+    assert(state_old.SAVEDTIMESTAMP == state_new.SAVEDTIMESTAMP);
+    std::cerr << state_old.NUM_NPOINTS << " - " << state_new.NUM_NPOINTS << std::endl;
+    assert(state_old.NUM_NPOINTS == state_new.NUM_NPOINTS);
     // TODO: compare NPOINTS (!)
 
     return 0;
