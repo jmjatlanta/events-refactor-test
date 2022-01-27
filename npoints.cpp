@@ -9,6 +9,7 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/member.hpp>
+#include <boost/multi_index/mem_fun.hpp>
 
 #define BITS 256
 
@@ -159,6 +160,7 @@ struct notarized_checkpoint /* komodo_structs.h */
         bool operator != (const struct notarized_checkpoint  &other) const {
             return !(*this == other);
         }
+        int32_t notarized_height_minus_MoMdepth()const { return notarized_height - (MoMdepth & 0xffff); }
     };
 
 std::ostream& operator<<(std::ostream& out, const notarized_checkpoint &nc) {
@@ -193,8 +195,8 @@ typedef boost::multi_index::multi_index_container<
                         >
                 >, // sorted by nHeight
                 boost::multi_index::ordered_non_unique<
-                        boost::multi_index::member<
-                                notarized_checkpoint, int32_t, &notarized_checkpoint::notarized_height
+                        boost::multi_index::const_mem_fun<
+                                notarized_checkpoint, int32_t, &notarized_checkpoint::notarized_height_minus_MoMdepth
                         >
                 > // sorted by notarized_height
         > > notarized_checkpoint_container;
@@ -415,13 +417,19 @@ namespace new_space {
                 // get the nearest height without going over
                 auto &idx = NPOINTS.get<1>(); // sorted by nHeight
                 auto itr = idx.upper_bound(nHeight);
-                if (itr != idx.begin())
+                if (itr == idx.end())
                     --itr;
-                if ( itr != idx.end() && (*itr).nHeight < nHeight )
+                while( true )
                 {
-                    *notarized_hashp = itr->notarized_hash;
-                    *notarized_desttxidp = itr->notarized_desttxid;
-                    return itr->notarized_height;
+                    if( (*itr).nHeight < nHeight)
+                    {
+                        *notarized_hashp = itr->notarized_hash;
+                        *notarized_desttxidp = itr->notarized_desttxid;
+                        return itr->notarized_height;
+                    }
+                    if (itr == idx.begin())
+                        break;
+                    --itr;
                 }
                 memset(notarized_hashp,0,sizeof(*notarized_hashp));
                 memset(notarized_desttxidp,0,sizeof(*notarized_desttxidp));
